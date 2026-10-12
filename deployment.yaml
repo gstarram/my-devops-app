@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
       - name: devops-app
-        image: devops-app:latest
-        imagePullPolicy: IfNotPresent
+        image: gstarram/devops-app:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 5000
 ---

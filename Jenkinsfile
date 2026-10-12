@@ -2,6 +2,8 @@ pipeline {
     agent any
 
     environment {
+        // Replace 'gstarram' with your actual Docker Hub username if different
+        DOCKER_USER = 'gstarram'
         APP_NAME = 'devops-app'
         IMAGE_TAG = "v${BUILD_NUMBER}"
     }
@@ -14,20 +16,24 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build & Push Docker Image') {
             steps {
-                echo "Building Docker image: ${APP_NAME}:${IMAGE_TAG}"
-                sh "docker build -t ${APP_NAME}:${IMAGE_TAG} ."
-                sh "docker tag ${APP_NAME}:${IMAGE_TAG} ${APP_NAME}:latest"
+                echo "Building and pushing Docker image: ${DOCKER_USER}/${APP_NAME}:${IMAGE_TAG}"
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
+                    sh 'echo $DH_PASS | docker login -u $DH_USER --password-stdin'
+                    sh "docker build -t ${DOCKER_USER}/${APP_NAME}:${IMAGE_TAG} ."
+                    sh "docker tag ${DOCKER_USER}/${APP_NAME}:${IMAGE_TAG} ${DOCKER_USER}/${APP_NAME}:latest"
+                    sh "docker push ${DOCKER_USER}/${APP_NAME}:${IMAGE_TAG}"
+                    sh "docker push ${DOCKER_USER}/${APP_NAME}:latest"
+                }
             }
         }
 
-        stage('Deploy to k3d Kubernetes') {
+        stage('Deploy to Kubernetes') {
             steps {
-                echo "Importing image into k3d cluster..."
-                sh "k3d image import ${APP_NAME}:latest -c mycluster"
                 echo "Applying Kubernetes manifests..."
                 sh "kubectl apply -f deployment.yaml"
+                sh "kubectl rollout restart deployment/devops-app"
             }
         }
     }
